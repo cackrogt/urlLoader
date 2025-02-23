@@ -54,7 +54,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.i("MainAct", "we throw error during url creation");
                 }
 
-                net.makeNetworkCall(url, caller);
+                net.checkIfRedirected(url, caller);
             }
         });
     }
