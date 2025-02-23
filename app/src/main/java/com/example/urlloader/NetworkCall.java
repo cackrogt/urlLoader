@@ -9,8 +9,15 @@ import androidx.annotation.NonNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
+import org.jsoup.nodes.Element;
+
 import java.io.IOException;
 import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -26,9 +33,25 @@ public class NetworkCall {
         client = new OkHttpClient();
     }
 
-    public void makeNetworkCall(URL url, CallbackOnNetworkResponse caller) {
+
+    public void checkIfRedirected(URL url, CallbackOnNetworkResponse caller) {
+        String initialUrl = url.toString(); // Replace with actual URL
+        AtomicReference<String> finalUrl = new AtomicReference<>();
+        ExecutorService exec = Executors.newSingleThreadExecutor();
+
+            exec.execute(
+                    () ->{
+                        finalUrl.set(getFinalUrl(initialUrl));
+                        new Handler(Looper.getMainLooper()).postDelayed(
+                                ()->makeNetworkCall(finalUrl.get(), caller), 2000
+                        );
+                    }
+            );
+    }
+    public void makeNetworkCall(String url, CallbackOnNetworkResponse caller) {
+
         request = new Request.Builder()
-                .url(url == null ? "https://google.com": url.toString())
+                .url(url == null ? "https://google.com": url)
                 .build();
 
         client.newCall(request).enqueue(new Callback() {
@@ -60,6 +83,42 @@ public class NetworkCall {
         String text = doc.text();
         return text;
     }
+
+    public String getFinalUrl(String url) {
+        Request request = new Request.Builder().url(url).build();
+        String html = "";
+        try {
+            Response response = client.newCall(request).execute();
+            html = response.body().string();
+        }
+        catch (Exception e) {
+            html = "";
+        }
+        // Check for <meta http-equiv="refresh" content="3;url=new_url">
+        Document doc = Jsoup.parse(html);
+        Element metaRefresh = doc.selectFirst("meta[http-equiv=refresh]");
+        if (metaRefresh != null) {
+            String content = metaRefresh.attr("content");
+            Pattern pattern = Pattern.compile("\\d+;\\s*url=(.+)", Pattern.CASE_INSENSITIVE);
+            Matcher matcher = pattern.matcher(content);
+            if (matcher.find()) {
+                return matcher.group(1).trim();
+            }
+        }
+
+        // Check for JavaScript redirects (window.location.href = 'new_url')
+        Pattern jsPattern = Pattern.compile(
+                "window\\.location\\.(href|replace|assign)\\s*=\\s*['\"](.*?)['\"]",
+                Pattern.CASE_INSENSITIVE);
+        Matcher jsMatcher = jsPattern.matcher(html);
+        if (jsMatcher.find()) {
+            return jsMatcher.group(2).trim();
+        }
+
+        // If no redirect is found, return the original URL
+        return url;
+    }
+
     public interface CallbackOnNetworkResponse{
         void onSuccess(String val);
         void onFailure(Exception e);

@@ -1,5 +1,6 @@
 package com.example.urlloader;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -8,11 +9,11 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.urlloader.R;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -28,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
         outputText.setMovementMethod(new android.text.method.ScrollingMovementMethod());
         scrollView = findViewById(R.id.scrollView);
         Button actionButton = findViewById(R.id.actionButton);
+        Context context = this;
         NetworkCall.CallbackOnNetworkResponse caller = new NetworkCall.CallbackOnNetworkResponse() {
             @Override
             public void onSuccess(String val) {
@@ -53,8 +55,20 @@ public class MainActivity extends AppCompatActivity {
                 } catch (MalformedURLException e) {
                     Log.i("MainAct", "we throw error during url creation");
                 }
+                AtomicReference<String> finUrl = new AtomicReference<>();
+                HeadlessWebView headlessWebView = new HeadlessWebView(context);
+                headlessWebView.loadUrl(url.toString(), (finalUrl, extractedText) -> {
+                    Log.i("Glimpse FinalResult", "Final URL: " + finalUrl);
+                    Log.i("Glimpse FinalResult", "Extracted Text: " + extractedText);
+                    finUrl.set(finalUrl);
+                    try {
+                        net.checkIfRedirected(new URL(finUrl.get()), caller);
+                    } catch (MalformedURLException e) {
+                        Log.i("Glimpse", "did not work");
+                    }
+                });
 
-                net.makeNetworkCall(url, caller);
+
             }
         });
     }
