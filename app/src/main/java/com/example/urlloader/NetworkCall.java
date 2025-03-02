@@ -53,6 +53,7 @@ public class NetworkCall {
         request = new Request.Builder()
                 .url(url == null ? "https://google.com": url)
                 .build();
+        Log.i("Glimpse", "we do get the url: " + url);
 
         client.newCall(request).enqueue(new Callback() {
             @Override

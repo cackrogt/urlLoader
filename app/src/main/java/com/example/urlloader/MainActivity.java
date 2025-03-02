@@ -1,6 +1,7 @@
 package com.example.urlloader;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -53,22 +54,23 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     url = new URL(inputLink);
                 } catch (MalformedURLException e) {
-                    Log.i("MainAct", "we throw error during url creation");
+                    Log.i("Glimpse", "we throw error during url creation");
                 }
                 AtomicReference<String> finUrl = new AtomicReference<>();
                 HeadlessWebView headlessWebView = new HeadlessWebView(context);
-                headlessWebView.loadUrl(url.toString(), (finalUrl, extractedText) -> {
+                headlessWebView.loadUrl(url.toString(), (finalUrl, text) -> {
                     Log.i("Glimpse FinalResult", "Final URL: " + finalUrl);
-                    Log.i("Glimpse FinalResult", "Extracted Text: " + extractedText);
                     finUrl.set(finalUrl);
                     try {
-                        net.checkIfRedirected(new URL(finUrl.get()), caller);
-                    } catch (MalformedURLException e) {
+                        outputText.setText(text);
+                        scrollToBottom();
+                    } catch (Exception e) {
                         Log.i("Glimpse", "did not work");
                     }
                 });
-
-
+                Intent intent = new Intent(MainActivity.this, DebugWebViewActivity.class);
+                intent.putExtra("URL_TO_LOAD", url.toString());
+                startActivity(intent);
             }
         });
     }
